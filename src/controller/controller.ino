@@ -29,10 +29,13 @@
 #define LCD_BAUDRATE      9600
 
 // All seting vslues.
-int setting_microstep     = 0;
-int setting_rotatedir     = 0;
-int setting_speed         = 0;
-int setting_mode          = 0;
+int   setting_microstep         = 0;
+char *setting_microstep_str[]   = {"1/1", "1/2", "1/4", "1/8", "1/16"};
+int setting_rotatedir           = 0;
+char *setting_rotatedir_str[]   = {"Left", "Right"};
+int setting_speed               = 40;
+int setting_mode                = 0;
+char *setting_mode_str[]        = {"Constant Speed", "Flip-Flop","Shake"};
 
 // ************************************************************************************************************
 // Global Objects
@@ -46,7 +49,8 @@ SoftwareSerial lcd(LCD_RX, LCD_TX); // pin 2 = TX, pin 3 = RX (unused)
 // Encoder
 Encoder encoder(ENCODER_A, ENCODER_B);
 
-int menu_position=0; // Default 0
+int menu_position = 0; // Default 0
+int menu_mode     = 0; // 0: Select 1: Set value
 long oldPosition  = -999;
 
 // ************************************************************************************************************
@@ -134,55 +138,114 @@ void LCDtext(char *strText, int line)
 
 // Process LCD menu
 void processMenu()
-{
-  LCDclear();
-  if (menu_position < 0) { menu_position=0; encoder.write(0); }
-  if (menu_position > 5) { menu_position=5; encoder.write(5*4);}
-  switch (menu_position)
+{  
+
+  Serial.println("menu");
+
+  while (menu_position > 0)
   {
-    case 0:
-    {            
-      LCDtext("VP-Macerator MK1",1);      
-      LCDtext("PUSH TO START",2);
-    }
-    break;
+    switch (menu_position)
+    {
+      case 0:
+      {            
+        LCDclear();
+        LCDtext("VP-Macerator MK1",1);      
+        LCDtext("PUSH TO START",2);
+      }
+      break;
+  
+      case 1:
+      {            
+        LCDclear();        
+        LCDtext("Microstep:", 1);            
+        LCDtext(setting_microstep_str[setting_microstep], 2);          // 1/1 [1/2] [1/4] [1/8] [1/16]
+      }
+      break;
+  
+      case 2:
+      {            
+        LCDclear();  
+        LCDtext("Rotate way:",1);      
+        LCDtext("Left",2);        // Left [Right]
+      }
+      break;
+  
+      case 3:
+      {            
+        LCDclear();  
+        LCDtext("Speed:",1);
+        
+        char buf[16];
+        //memset(buf, 0, 16);
+        sprintf(buf, "Value: %d", setting_speed);
+        Serial.println(buf);
+        
+        LCDtext("0", 2);        // 1 - 100%
+      }
+      break;
+  
+      case 4:
+      {            
+        LCDclear();  
+        LCDtext("Mode:",1);
+        LCDtext("Constant Speed",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
+      }
+      break;                
+  
+      case 5:
+      {            
+        LCDclear();  
+        LCDtext("Default values:",1);
+        LCDtext("RESET NOW",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
+      }
+      break;                    
+    }  
 
-    case 1:
-    {            
-      LCDtext("Microstep:", 1);            
-      LCDtext("1/1", 2);          // 1/1 [1/2] [1/4] [1/8] [1/16]
+    // Track mode
+    if (menu_mode == 0)
+    {
+      // Mode change menu
+      menu_position = getEncoderValue();    
+      
+      if (menu_position < 0) { menu_position=0; encoder.write(0); }
+      if (menu_position > 5) { menu_position=5; encoder.write(5*4);}    
     }
-    break;
+    else if (menu_mode == 1)
+    {
+      // Mode change value
+      switch (menu_position)
+      {
+        case 2:
+          setting_microstep = getEncoderValue();  
+          break;        
+          
+        case 3:
+          setting_speed = getEncoderValue();  
+          break;
+      }
+    }
 
-    case 2:
-    {      
-      LCDtext("Rotate way:",1);      
-      LCDtext("Left",2);        // Left [Right]
-    }
-    break;
-
-    case 3:
-    {      
-      LCDtext("Speed:",1);
-      LCDtext("80%",2);        // 1 - 100%
-    }
-    break;
-
-    case 4:
-    {      
-      LCDtext("Mode:",1);
-      LCDtext("Constant Speed",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
-    }
-    break;                
-
-    case 5:
-    {      
-      LCDtext("Default values:",1);
-      LCDtext("RESET NOW",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
-    }
-    break;                    
+    if (!digitalRead(ENCODER_BUTTON))
+    {
+      if (menu_mode == 0) 
+      { 
+        menu_mode = 1; encoder.write(0); 
+      }
+      else 
+      { 
+        menu_mode = 0; 
+        encoder.write(menu_position*4); 
+      }
+      delay(120);
+      Serial.print("Menu mode: ");
+      Serial.println(menu_mode);
+    }    
+        
   }
-
+  Serial.println("Exit menu");
+  LCDclear();
+  LCDtext("VP-Macerator MK1",1);      
+  LCDtext("PUSH TO START",2);  
 }
 
 // ************************************************************************************************************
@@ -212,10 +275,10 @@ void setup()
 
 int getEncoderValue()
 {
-  long newPosition = encoder.read();
+  long newPosition = encoder.read()/4;
   if (newPosition != oldPosition) {
     oldPosition = newPosition;    
-    return newPosition/4;
+    return newPosition;
   }  
 }
 
@@ -225,8 +288,11 @@ int getEncoderValue()
 void loop()
 {
 
-  long newPosition = encoder.read();
+  long newPosition = encoder.read()/4;
+  if (newPosition < 0) { encoder.write(0); newPosition = 0; }
   if (newPosition != oldPosition) {
+    oldPosition = newPosition;
+    Serial.println(newPosition);
     menu_position = getEncoderValue();
     processMenu();
   }  
