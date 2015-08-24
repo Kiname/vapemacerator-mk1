@@ -7,7 +7,7 @@
 #include <AccelStepper.h>
 #include <Encoder.h>
 #include <SoftwareSerial.h>
-#include <Bounce2.h> 
+#include <EEPROM.h>
 
 //#define ENCODER_DO_NOT_USE_INTERRUPTS
 //#define ENCODER_OPTIMIZE_INTERRUPTS
@@ -28,6 +28,12 @@
 
 #define LCD_BAUDRATE      9600
 
+// All seting vslues.
+int setting_microstep     = 0;
+int setting_rotatedir     = 0;
+int setting_speed         = 0;
+int setting_mode          = 0;
+
 // ************************************************************************************************************
 // Global Objects
 // ************************************************************************************************************
@@ -42,6 +48,58 @@ Encoder encoder(ENCODER_A, ENCODER_B);
 
 int menu_position=0; // Default 0
 long oldPosition  = -999;
+
+// ************************************************************************************************************
+// Memory functions
+// Memory map: (all sectors are 1 byte length)
+/*
+ * Byte 0, 1: Header (fixed value)
+ * value: MK (2bytes)
+ * 
+ * Byte 2: Microstep 
+ * Values:  0     (1/1)
+ *          1     (1/2)
+ *          2     (1/4)
+ *          3     (1/8)
+ *          4     (1/16)
+ *          
+ * Byte 3: Rotate dir        
+ * Values:  0     (Left)
+ *          1     (Right)
+ *          
+ * Byte 4: Speed
+ * Values:  0 to 100
+ * 
+ * Byte 5: Mode
+ * Values:  0     (Constant Speed)
+ *          1     (Flip-Flop)
+ *          2     (Shake)
+*/
+// ************************************************************************************************************
+void readParams()
+{
+  // First check 2 bytes for "MK"
+  if ( (EEPROM.read(0) == 'M') && (EEPROM.read(1) == 'K') )
+  {
+    Serial.println("Read values...");
+    setting_microstep     = EEPROM.read(2);
+    setting_rotatedir     = EEPROM.read(3);
+    setting_speed         = EEPROM.read(4);
+    setting_mode          = EEPROM.read(5);  
+  }
+  else
+  {
+    // Header not found. Reset to default values
+    Serial.println("Default values set!");
+    EEPROM.write(0, 'M');
+    EEPROM.write(1, 'K');
+    EEPROM.write(2, setting_microstep);
+    EEPROM.write(3, setting_rotatedir);
+    EEPROM.write(4, setting_speed);
+    EEPROM.write(5, setting_mode);
+  }
+  
+}
 
 // ************************************************************************************************************
 // LCD funcions
@@ -79,7 +137,7 @@ void processMenu()
 {
   LCDclear();
   if (menu_position < 0) { menu_position=0; encoder.write(0); }
-  if (menu_position > 4) { menu_position=4; encoder.write(4*4);}
+  if (menu_position > 5) { menu_position=5; encoder.write(5*4);}
   switch (menu_position)
   {
     case 0:
@@ -116,9 +174,15 @@ void processMenu()
       LCDtext("Constant Speed",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
     }
     break;                
+
+    case 5:
+    {      
+      LCDtext("Default values:",1);
+      LCDtext("RESET NOW",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
+    }
+    break;                    
   }
 
-  if (menu_position > 4) { menu_position=0; }
 }
 
 // ************************************************************************************************************
@@ -138,7 +202,8 @@ void setup()
   lcd.begin(LCD_BAUDRATE);
   
   Serial.begin(9600);
-  Serial.println("Basic Encoder Test:");   
+
+  readParams();
 
   LCDclear();
   processMenu();
