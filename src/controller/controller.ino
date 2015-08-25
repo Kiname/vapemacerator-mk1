@@ -37,6 +37,9 @@ int setting_speed               = 40;
 int setting_mode                = 0;
 char *setting_mode_str[]        = {"Constant Speed", "Flip-Flop","Shake"};
 
+char *rotator[4] = {"|", "/", "-", "\\" };
+int rotator_count=0;
+
 // ************************************************************************************************************
 // Global Objects
 // ************************************************************************************************************
@@ -159,7 +162,7 @@ void processMenu()
       case 0:
       {            
         LCDclear();
-        LCDtext("VP-Macerator MK1",1);      
+        LCDtext("Macerator MK1",1);      
         LCDtext("PUSH TO START",2);
       }
       break;
@@ -275,7 +278,7 @@ void processMenu()
   Serial.println("Exit menu");
   LCDclear();
   writeParams();    
-  LCDtext("VP-Macerator MK1",1);      
+  LCDtext("Macerator MK1",1);      
   LCDtext("PUSH TO START",2);  
 }
 
@@ -325,6 +328,7 @@ void loop()
     oldPosition = newPosition;
     Serial.println(newPosition);
     menu_position = getEncoderValue();
+    isworking = false; // Stop everything before menu
     processMenu();
   }  
   
@@ -338,12 +342,15 @@ void loop()
         // Start motor here
         isworking = true; 
         stepper.setMaxSpeed(10000);
-        stepper.setSpeed((3000*100)/setting_speed);
+        stepper.setSpeed(setting_speed*10);
+        LCDtext("      STOP       ",2);  
       }
       else
       {
         isworking = false;
+        LCDtext("PUSH TO START",2);  
       }
+      while (!digitalRead(ENCODER_BUTTON)) { } // Wait for release
       delay(150);
     }
   }      
@@ -351,6 +358,13 @@ void loop()
   if (isworking == true)
   {
     stepper.runSpeed();      
+    /*
+    LCDtext("                ",2);  
+    LCDtext(rotator[rotator_count],2);  
+
+    rotator_count++;
+    if (rotator_count > 4) { rotator_count=0; }
+    */
   }
   
 }
