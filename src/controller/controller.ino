@@ -17,9 +17,9 @@
 // ************************************************************************************************************
 #define MOTOR_DIR         4
 #define MOTOR_STEP        5 
-#define MOTOR_MS1         0 // See https://www.pololu.com/product/1182 for details
-#define MOTOR_MS2         0
-#define MOTOR_MS3         0
+#define MOTOR_MS1         9 // See https://www.pololu.com/product/1182 for details
+#define MOTOR_MS2         10
+#define MOTOR_MS3         13
 #define LCD_RX            6 // Not used for LCD but initialized by Softserial 
 #define LCD_TX            7
 #define ENCODER_A         3
@@ -51,6 +51,7 @@ Encoder encoder(ENCODER_A, ENCODER_B);
 
 int menu_position = 0; // Default 0
 int menu_mode     = 0; // 0: Select 1: Set value
+bool isworking    = false;
 long oldPosition  = -999;
 
 // ************************************************************************************************************
@@ -105,6 +106,14 @@ void readParams()
   
 }
 
+void writeParams()
+{
+    EEPROM.write(2, setting_microstep);
+    EEPROM.write(3, setting_rotatedir);
+    EEPROM.write(4, setting_speed);
+    EEPROM.write(5, setting_mode);  
+}
+
 // ************************************************************************************************************
 // LCD funcions
 // ************************************************************************************************************
@@ -141,7 +150,7 @@ void processMenu()
 {  
 
   Serial.println("menu");
-  char buf[16];                
+  char buf[16];                  
 
   while (menu_position > 0)
   {
@@ -209,6 +218,7 @@ void processMenu()
     }
     else if (menu_mode == 1)
     {
+      LCDsetpos(1, 1);      
       // Mode change value
       switch (menu_position)
       {
@@ -264,6 +274,7 @@ void processMenu()
   }
   Serial.println("Exit menu");
   LCDclear();
+  writeParams();    
   LCDtext("VP-Macerator MK1",1);      
   LCDtext("PUSH TO START",2);  
 }
@@ -317,10 +328,29 @@ void loop()
     processMenu();
   }  
   
-  /*
+  
   if (!digitalRead(ENCODER_BUTTON))
   {
-    if (menu_position == 0) { menu_position=1; processMenu(); }    
+    if (menu_position == 0) 
+    {  
+      if (isworking == false)
+      {        
+        // Start motor here
+        isworking = true; 
+        stepper.setMaxSpeed(10000);
+        stepper.setSpeed((3000*100)/setting_speed);
+      }
+      else
+      {
+        isworking = false;
+      }
+      delay(150);
+    }
+  }      
+
+  if (isworking == true)
+  {
+    stepper.runSpeed();      
   }
-  */
+  
 }
