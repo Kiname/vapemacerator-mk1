@@ -141,6 +141,7 @@ void processMenu()
 {  
 
   Serial.println("menu");
+  char buf[16];                
 
   while (menu_position > 0)
   {
@@ -165,8 +166,8 @@ void processMenu()
       case 2:
       {            
         LCDclear();  
-        LCDtext("Rotate way:",1);      
-        LCDtext("Left",2);        // Left [Right]
+        LCDtext("Direction:",1);      
+        LCDtext(setting_rotatedir_str[setting_rotatedir], 2);        // Left [Right]
       }
       break;
   
@@ -174,13 +175,9 @@ void processMenu()
       {            
         LCDclear();  
         LCDtext("Speed:",1);
-        
-        char buf[16];
-        //memset(buf, 0, 16);
-        sprintf(buf, "Value: %d", setting_speed);
-        Serial.println(buf);
-        
-        LCDtext("0", 2);        // 1 - 100%
+                
+        sprintf(buf, "%3d%%", setting_speed);
+        LCDtext(buf, 2);        // 1 - 250%
       }
       break;
   
@@ -188,7 +185,7 @@ void processMenu()
       {            
         LCDclear();  
         LCDtext("Mode:",1);
-        LCDtext("Constant Speed",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
+        LCDtext(setting_mode_str[setting_mode],2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
       }
       break;                
   
@@ -215,13 +212,33 @@ void processMenu()
       // Mode change value
       switch (menu_position)
       {
-        case 2:
-          setting_microstep = getEncoderValue();  
+        case 1:
+          setting_microstep = getEncoderValue();         
+          // Limit min/max values 
+          if (setting_microstep > 4) { setting_microstep=4; encoder.write(4*4); }
+          if (setting_microstep < 0) { setting_microstep=0; encoder.write(0); }                    
+          break;
+          
+        case 2:          
+          setting_rotatedir = getEncoderValue();         
+          // Limit min/max values 
+          if (setting_rotatedir > 1) { setting_rotatedir=1; encoder.write(1*4); }
+          if (setting_rotatedir < 0) { setting_rotatedir=0; encoder.write(0); }        
           break;        
           
         case 3:
           setting_speed = getEncoderValue();  
+          // Limit min/max values 
+          if (setting_speed > 250) { setting_speed=250; encoder.write(250*4); }
+          if (setting_speed < 1)   { setting_speed=1; encoder.write(1*4); }
           break;
+
+        case 4:
+          setting_mode = getEncoderValue();  
+          // Limit min/max values 
+          if (setting_mode > 2) { setting_mode=2; encoder.write(2*4); }
+          if (setting_mode < 0) { setting_mode=0; encoder.write(0); }
+          break;          
       }
     }
 
@@ -229,7 +246,10 @@ void processMenu()
     {
       if (menu_mode == 0) 
       { 
-        menu_mode = 1; encoder.write(0); 
+        menu_mode = 1; 
+        if (menu_position == 1) { encoder.write(setting_microstep*4); }
+        if (menu_position == 2) {  }        
+        if (menu_position == 3) { encoder.write(setting_speed*4); }        
       }
       else 
       { 
