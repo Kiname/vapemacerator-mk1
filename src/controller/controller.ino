@@ -28,6 +28,9 @@
 
 #define LCD_BAUDRATE      9600
 
+#define GEAR_RATIO        3 // 48T and 16T = 3:1
+#define MOTOR_MAX_SPEED   10000 // RPM
+
 // Thanks to Mem for this! (http://forum.arduino.cc/index.php?topic=42211.0)
 #define SECS_PER_MIN  (60UL)
 #define SECS_PER_HOUR (3600UL)
@@ -231,7 +234,7 @@ void processMenu()
         LCDtext("Speed:",1);
                 
         sprintf(buf, "%3d%%", setting_speed);
-        LCDtext(buf, 2);        // 1 - 250%
+        LCDtext(buf, 2);        // 1 - 100%
       }
       break;
   
@@ -246,10 +249,18 @@ void processMenu()
       case 6:
       {            
         LCDclear();  
-        LCDtext("Default values:",1);
-        LCDtext("RESET NOW",2);        // Constant Speed  [Flip-Flop] [Shake (Low)] [Shake (High)]
+        LCDtext("Manual Mode:",1);
+        LCDtext("Click to rotate",2);        // Manual mode
       }
       break;                    
+
+      case 7:
+      {            
+        LCDclear();  
+        LCDtext("Default values:",1);
+        LCDtext("RESET NOW",2);        // Reset to default
+      }
+      break;                          
     }  
 
     // Track mode
@@ -259,7 +270,7 @@ void processMenu()
       menu_position = getEncoderValue();    
       
       if (menu_position < 0) { menu_position=0; encoder.write(0); }
-      if (menu_position > 6) { menu_position=6; encoder.write(6*4);}    
+      if (menu_position > 7) { menu_position=7; encoder.write(7*4);}    // Max menu number
     }
     else if (menu_mode == 1)
     {
@@ -297,7 +308,7 @@ void processMenu()
         case 4:
           setting_speed = getEncoderValue();  
           // Limit min/max values 
-          if (setting_speed > 250) { setting_speed=250; encoder.write(250*4); }
+          if (setting_speed > 100) { setting_speed=100; encoder.write(100*4); }
           if (setting_speed < 1)   { setting_speed=1; encoder.write(1*4); }
           break;
 
@@ -307,6 +318,17 @@ void processMenu()
           if (setting_mode > 2) { setting_mode=2; encoder.write(2*4); }
           if (setting_mode < 0) { setting_mode=0; encoder.write(0); }
           break;          
+
+        case 6:
+          // Manual mode
+          Serial.println(getEncoderValue());
+          stepper.moveTo(getEncoderValue()*10); 
+          stepper.runSpeed(); 
+          break;          
+
+        case 7:
+          // Reset to default
+          break;                              
       }
     }
 
@@ -320,6 +342,8 @@ void processMenu()
         if (menu_position == 3) { encoder.write(setting_duration*4); }        
         if (menu_position == 4) { encoder.write(setting_speed*4); }        
         if (menu_position == 5) { encoder.write(setting_mode*4); }                
+        if (menu_position == 6) { encoder.write(0); }                
+        if (menu_position == 7) {  }                
       }
       else 
       { 
@@ -354,6 +378,7 @@ void setup()
   pinMode(MOTOR_MS3,OUTPUT);
   
   lcd.begin(LCD_BAUDRATE);
+  stepper.setMaxSpeed(MOTOR_MAX_SPEED); // Max RPM
   
   Serial.begin(9600);
 
@@ -379,6 +404,8 @@ int getEncoderValue()
 void loop()
 {
 
+  int steps=5000;
+
   long newPosition = encoder.read()/4;
   if (newPosition < 0) { encoder.write(0); newPosition = 0; }
   if (newPosition != oldPosition) {
@@ -398,9 +425,25 @@ void loop()
       {        
         // Start motor here
         isworking = true; 
-        stepper.setMaxSpeed(10000);
-        stepper.setSpeed(setting_speed*10);
+
+        switch (setting_mode)
+        {
+          case 0: // Constant Speed            
+            stepper.setSpeed(setting_speed * MOTOR_MAX_SPEED / 100);
+            break;
+    
+          case 1: // Flip Flop            
+            stepper.setSpeed(setting_speed * MOTOR_MAX_SPEED / 100);
+            stepper.setAcceleration(500);
+            stepper.moveTo(steps);        
+            break;
+    
+          case 2: // Shake
+            break;            
+        }
+
         LCDtext("      STOP       ",2);  
+       
       }
       else
       {
@@ -412,16 +455,28 @@ void loop()
     }
   }      
 
+  // *******************
+  // Main working code
+  // *******************  
   if (isworking == true)
-  {
-    stepper.runSpeed();      
-    /*
-    LCDtext("                ",2);  
-    LCDtext(rotator[rotator_count],2);  
+  {    
+    switch (setting_mode)
+    {
+      case 0: // Constant Speed
+        stepper.runSpeed();      
+        break;
 
-    rotator_count++;
-    if (rotator_count > 4) { rotator_count=0; }
-    */
+      case 1: // Flip Flop
+        if (stepper.distanceToGo() <= 1) { 
+          stepper.moveTo(-stepper.currentPosition()); 
+        }    
+        stepper.run();      
+        break;
+
+      case 2: // Shake
+        break;            
+    }    
+        
   }
   
 }
