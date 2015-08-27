@@ -145,6 +145,43 @@ void writeParams()
     EEPROM.write(6, setting_mode);  
 }
 
+// Set microstep config of the A4988 board acording to https://www.pololu.com/product/1182
+/*
+ * MS1    MS2     MS3     Microstep Resolution
+ * Low    Low     Low     (1/1)  Full Step
+ * High   Low     Low     (1/2)  Half Step
+ * Low    High    Low     (1/4)  Quarter Step
+ * High   High    Low     (1/8)  Eighth step
+ * High   High    High    (1/16) Sixteeth step
+ * 
+ */
+void setMicrosteps()
+{
+  switch (setting_microstep)
+  {
+    case 0: // 1/1
+      digitalWrite(MOTOR_MS1, LOW); digitalWrite(MOTOR_MS2, LOW); digitalWrite(MOTOR_MS3, LOW);
+      break;
+
+    case 1: // 1/2
+      digitalWrite(MOTOR_MS1, HIGH); digitalWrite(MOTOR_MS2, LOW); digitalWrite(MOTOR_MS3, LOW);
+      break;
+
+    case 2: // 1/4
+      digitalWrite(MOTOR_MS1, LOW); digitalWrite(MOTOR_MS2, HIGH); digitalWrite(MOTOR_MS3, LOW);
+      break;
+
+    case 3: // 1/8
+      digitalWrite(MOTOR_MS1, HIGH); digitalWrite(MOTOR_MS2, HIGH); digitalWrite(MOTOR_MS3, LOW);
+      break;
+
+    case 4: // 1/16
+      digitalWrite(MOTOR_MS1, HIGH); digitalWrite(MOTOR_MS2, HIGH); digitalWrite(MOTOR_MS3, HIGH);
+      break;                
+  }
+    
+}
+
 // ************************************************************************************************************
 // LCD funcions
 // ************************************************************************************************************
@@ -359,6 +396,7 @@ void processMenu()
   Serial.println("Exit menu");
   LCDclear();
   writeParams();    
+  setMicrosteps();
   LCDtext("Macerator MK1",1);      
   LCDtext("PUSH TO START",2);  
 }
@@ -383,6 +421,7 @@ void setup()
   Serial.begin(9600);
 
   readParams();
+  setMicrosteps();
 
   LCDclear();
   processMenu();
