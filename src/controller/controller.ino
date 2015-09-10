@@ -20,6 +20,7 @@
 #define MOTOR_MS1         9 // See https://www.pololu.com/product/1182 for details
 #define MOTOR_MS2         10
 #define MOTOR_MS3         13
+#define MOTOR_SLEEP       8
 #define LCD_RX            6 // Not used for LCD but initialized by Softserial 
 #define LCD_TX            7
 #define ENCODER_A         3
