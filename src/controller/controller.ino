@@ -23,8 +23,8 @@
 #define MOTOR_SLEEP       8
 #define LCD_RX            6 // Not used for LCD but initialized by Softserial 
 #define LCD_TX            7
-#define ENCODER_A         3
-#define ENCODER_B         2
+#define ENCODER_A         2
+#define ENCODER_B         3
 #define ENCODER_BUTTON    12
 
 #define LCD_BAUDRATE      9600
