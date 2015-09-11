@@ -415,6 +415,7 @@ void setup()
   pinMode(MOTOR_MS1,OUTPUT);
   pinMode(MOTOR_MS2,OUTPUT);
   pinMode(MOTOR_MS3,OUTPUT);
+  pinMode(MOTOR_SLEEP, OUTPUT);
   
   lcd.begin(LCD_BAUDRATE);
   stepper.setMaxSpeed(MOTOR_MAX_SPEED); // Max RPM
@@ -465,6 +466,7 @@ void loop()
       {        
         // Start motor here
         isworking = true; 
+        digitalWrite(MOTOR_SLEEP, HIGH);
 
         switch (setting_mode)
         {
@@ -488,6 +490,7 @@ void loop()
       else
       {
         isworking = false;
+        digitalWrite(MOTOR_SLEEP, LOW);
         LCDtext("PUSH TO START",2);  
       }
       while (!digitalRead(ENCODER_BUTTON)) { } // Wait for release
